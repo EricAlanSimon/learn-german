@@ -1,15 +1,13 @@
-# app.py
 import streamlit as st
-from gtts import gTTS
+import pyttsx3
+import tempfile
 import io
 import random
+import os
 
-# --- App Configuration ---
-st.set_page_config(
-    page_title="German Learning Buddy",
-    page_icon="🇩🇪",
-    layout="centered"
-)
+# --- App Config ---
+st.set_page_config(page_title="German Learning Buddy", page_icon="🇩🇪", layout="centered")
+
 
 # --- German Words Dictionary ---
 GERMAN_WORDS = {
@@ -126,40 +124,37 @@ GERMAN_WORDS = {
     "durstig": "thirsty",
     "hungrig": "hungry"
 }
+# --- Initialize pyttsx3 engine ---
+@st.experimental_singleton
+def get_tts_engine():
+    engine = pyttsx3.init()
+    engine.setProperty("rate", 150)  # adjust speaking rate here
+    return engine
 
-# --- Helper Functions ---
+# --- Audio Generation ---
+def generate_offline_audio(text):
+    engine = get_tts_engine()
+    # Use a temp WAV file, then read bytes
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp_path = tmp.name
+    engine.save_to_file(text, tmp_path)
+    engine.runAndWait()
+    with open(tmp_path, "rb") as f:
+        data = f.read()
+    os.remove(tmp_path)
+    return data
+
+# --- Word Selection Helper ---
 def get_new_word_pair():
-    """Selects a new random word and stores it in session state, avoiding repeats."""
-    all_items = list(GERMAN_WORDS.items())
-    if "german_word" in st.session_state:
-        all_items = [item for item in all_items if item[0] != st.session_state.german_word]
-    st.session_state.german_word, st.session_state.english_translation = random.choice(all_items)
+    items = list(GERMAN_WORDS.items())
+    prev = st.session_state.get("german_word")
+    if prev:
+        items = [i for i in items if i[0] != prev]
+    st.session_state.german_word, st.session_state.english_translation = random.choice(items)
     st.session_state.show_translation = False
     st.session_state.audio_played = False
 
-def play_audio():
-    """Generates and plays the audio for the current German word."""
-    if st.session_state.german_word:
-        try:
-            with st.spinner("Generating pronunciation..."):
-                tts = gTTS(text=st.session_state.german_word, lang='de')
-                audio_bytes_io = io.BytesIO()
-                tts.write_to_fp(audio_bytes_io)
-                audio_bytes_io.seek(0)
-
-                # Check if audio has data
-                if audio_bytes_io.getbuffer().nbytes == 0:
-                    st.error("No audio data generated. Check your internet connection.")
-                    return
-
-            # Read bytes explicitly for st.audio
-            st.audio(audio_bytes_io.read(), format="audio/mp3", autoplay=True)
-
-        except Exception as e:
-            st.error(f"Failed to generate audio: {e}")
-            st.warning("Please check your internet connection and try again.")
-
-# --- Session State Initialization ---
+# --- Session State Setup ---
 if "german_word" not in st.session_state:
     get_new_word_pair()
 
@@ -168,15 +163,17 @@ st.title("German Learning Buddy 🇩🇪")
 st.write("Welcome to your German vocabulary trainer!")
 st.markdown("---")
 
-# Display current German word
 st.header(st.session_state.german_word)
 
-# Play audio if not yet played
 if not st.session_state.audio_played:
-    play_audio()
-    st.session_state.audio_played = True
+    try:
+        audio = generate_offline_audio(st.session_state.german_word)
+        st.audio(audio, format="audio/wav")
+        st.session_state.audio_played = True
+    except Exception as e:
+        st.error(f"Failed to generate audio locally: {e}")
 
-# Targeted CSS to hide only form submit buttons
+# Hide forms' default submit buttons
 st.markdown("""
 <style>
 div.stButton > button[kind="secondary"] {
@@ -185,9 +182,8 @@ div.stButton > button[kind="secondary"] {
 </style>
 """, unsafe_allow_html=True)
 
-# --- Game Logic ---
 if not st.session_state.show_translation:
-    with st.form(key="typing_form"):
+    with st.form("guess_form"):
         _ = st.text_input("Type the German word here:")
         submitted = st.form_submit_button("Submit")
     if submitted:
@@ -195,13 +191,12 @@ if not st.session_state.show_translation:
 else:
     st.subheader("Translation:")
     st.write(st.session_state.english_translation)
-    with st.form(key="next_form"):
+    with st.form("next_form"):
         _ = st.text_input("Press Enter for next word:", value="")
-        next_submitted = st.form_submit_button("Next")
-    if next_submitted:
+        next_submit = st.form_submit_button("Next")
+    if next_submit:
         get_new_word_pair()
         st.rerun()
 
-# --- Footer ---
 st.markdown("---")
-st.caption("Made with ❤️ using Streamlit and gTTS")
+st.caption("Made with ❤️ using Streamlit and pyttsx3 (offline TTS)")
