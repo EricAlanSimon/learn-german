@@ -1,3 +1,2 @@
 streamlit
-gtts
-pyttsx3
+edge-tts
