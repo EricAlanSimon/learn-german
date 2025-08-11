@@ -51,7 +51,8 @@ words = {
 # ----------------------------
 # Text-to-speech initialization
 # ----------------------------
-@st.singleton
+
+@st.cache_resource
 def get_tts_engine():
     engine = pyttsx3.init()
     engine.setProperty("rate", 150)  # Adjust speed
