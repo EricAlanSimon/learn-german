@@ -1,9 +1,9 @@
 import streamlit as st
 import random
 import edge_tts
-import asyncio
 import tempfile
 import os
+import anyio
 
 # --- German words dictionary ---
 GERMAN_WORDS = {
@@ -41,10 +41,8 @@ GERMAN_WORDS = {
     "das Brot": "the bread",
     "der Apfel": "the apple",
     "die Banane": "the banana",
-    # Add more if you want
 }
 
-# --- Async helper to generate TTS audio with edge-tts ---
 async def generate_tts_audio(text: str, voice: str = "de-DE-KatjaNeural"):
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     communicator = edge_tts.Communicate(text, voice)
@@ -52,9 +50,8 @@ async def generate_tts_audio(text: str, voice: str = "de-DE-KatjaNeural"):
     return tmp_file.name
 
 def get_audio_file(text):
-    return asyncio.run(generate_tts_audio(text))
+    return anyio.run(generate_tts_audio, text)
 
-# --- Streamlit app ---
 st.set_page_config(page_title="German Learning Buddy", page_icon="🇩🇪")
 
 st.title("German Learning Buddy 🇩🇪")
