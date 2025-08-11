@@ -1,10 +1,8 @@
-# app.py
-
 import streamlit as st
 from gtts import gTTS
-import os
 import io
 import random
+import base64
 
 # --- App Configuration ---
 st.set_page_config(
@@ -14,7 +12,6 @@ st.set_page_config(
 )
 
 # A more extensive, hard-coded dictionary of common German words for the game.
-# This list contains more than 100 common words.
 GERMAN_WORDS = {
     "Hallo": "Hello",
     "Danke": "Thank you",
@@ -130,79 +127,69 @@ GERMAN_WORDS = {
     "hungrig": "hungry"
 }
 
-
 # --- State Initialization ---
-# This is crucial for Streamlit to remember the state between re-runs
 if "german_word" not in st.session_state:
     st.session_state.german_word = None
     st.session_state.english_translation = None
     st.session_state.show_translation = False
-    st.session_state.feedback = ""
+    st.session_state.audio_played = False
 
 def get_new_word_pair():
     """Selects a new random word and stores it in session state."""
-    st.session_state.show_translation = False
-    st.session_state.feedback = ""
     st.session_state.german_word, st.session_state.english_translation = random.choice(list(GERMAN_WORDS.items()))
-    # To clear the input box for the next round
+    st.session_state.show_translation = False
+    st.session_state.audio_played = False
     if 'user_guess' in st.session_state:
         del st.session_state.user_guess
 
-def play_audio():
-    """Generates and plays the audio for the current German word."""
-    if st.session_state.german_word:
+def autoplay_audio():
+    """Generates and autoplays the audio for the current German word."""
+    if st.session_state.german_word and not st.session_state.audio_played:
         try:
             tts = gTTS(text=st.session_state.german_word, lang='de')
             audio_bytes_io = io.BytesIO()
             tts.write_to_fp(audio_bytes_io)
             audio_bytes_io.seek(0)
-            st.audio(audio_bytes_io, format="audio/mp3")
+            
+            # Encode the audio bytes to base64 for autoplay
+            audio_base64 = base64.b64encode(audio_bytes_io.read()).decode('utf-8')
+            audio_tag = f'''
+            <audio autoplay>
+            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+            </audio>
+            '''
+            st.components.v1.html(audio_tag, height=0)
+            st.session_state.audio_played = True
         except Exception as e:
-            st.error(f"Failed to generate audio. Please check your network connection.")
-            st.warning("This is likely a temporary issue with the text-to-speech service.")
+            st.error(f"Failed to generate audio: {str(e)}")
 
 # --- App UI & Logic ---
-
 st.title("German Learning Buddy 🇩🇪")
 st.markdown("---")
-st.write("Welcome to your German vocabulary trainer!")
 
 # Initialize the first word if the app just started
 if st.session_state.german_word is None:
     get_new_word_pair()
 
-# Display the German word to be repeated
+# Display the German word and play audio automatically
 st.header(st.session_state.german_word)
+autoplay_audio()
 
-# Play audio for the German word
-if st.button("🔊 Play Pronunciation"):
-    play_audio()
+# User input section
+user_guess = st.text_input(
+    "Type the German word/phrase exactly as shown (press Enter to submit):",
+    key="user_guess",
+    on_change=lambda: setattr(st.session_state, 'show_translation', True)
+)
 
-# --- User Guess Section ---
-user_guess = st.text_input("Type the German word here:", key="user_guess")
-
-# Handle the user's guess and provide feedback
-if st.button("Check Answer"):
-    if user_guess.strip().lower() == st.session_state.german_word.lower():
-        st.session_state.feedback = f"✅ Correct! The English translation is '{st.session_state.english_translation}'."
-        st.session_state.show_translation = True
-    else:
-        st.session_state.feedback = "❌ Incorrect. Try again!"
-        st.session_state.show_translation = False
-
-# Display feedback and the correct answer if requested
-if st.session_state.feedback:
-    st.markdown("### Feedback:")
-    if st.session_state.feedback.startswith("✅"):
-        st.success(st.session_state.feedback)
-        st.session_state.show_translation = True
-    else:
-        st.error(st.session_state.feedback)
-
-# Show a new word button
+# Show translation when user submits (presses Enter)
 if st.session_state.show_translation:
-    if st.button("Get a New Word"):
+    st.markdown(f"**English translation:** {st.session_state.english_translation}")
+    
+    # Button to trigger next word (acts like pressing Enter again)
+    if st.button("Next Word (or press Enter)"):
         get_new_word_pair()
+        st.experimental_rerun()
 
 # --- Footer ---
 st.markdown("---")
