@@ -125,7 +125,7 @@ GERMAN_WORDS = {
     "hungrig": "hungry"
 }
 # --- Initialize pyttsx3 engine ---
-@st.experimental_singleton
+@st.singleton
 def get_tts_engine():
     engine = pyttsx3.init()
     engine.setProperty("rate", 150)  # adjust speaking rate here
