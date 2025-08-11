@@ -1,11 +1,8 @@
 import streamlit as st
 import random
-import edge_tts
-import tempfile
-import os
-import anyio
+import urllib.parse
 
-# --- German words dictionary ---
+# Full German word dictionary
 GERMAN_WORDS = {
     "Hallo": "Hello",
     "Danke": "Thank you",
@@ -41,16 +38,85 @@ GERMAN_WORDS = {
     "das Brot": "the bread",
     "der Apfel": "the apple",
     "die Banane": "the banana",
+    "die Straße": "the street",
+    "die Stadt": "the city",
+    "das Land": "the country",
+    "der Baum": "the tree",
+    "die Blume": "the flower",
+    "die Sonne": "the sun",
+    "der Mond": "the moon",
+    "der Stern": "the star",
+    "die Wolke": "the cloud",
+    "der Himmel": "the sky",
+    "der Freund": "the friend (male)",
+    "die Freundin": "the friend (female)",
+    "die Familie": "the family",
+    "der Vater": "the father",
+    "die Mutter": "the mother",
+    "der Bruder": "the brother",
+    "die Schwester": "the sister",
+    "die Liebe": "the love",
+    "das Glück": "the happiness",
+    "die Zeit": "the time",
+    "das Geld": "the money",
+    "der Schlüssel": "the key",
+    "die Tür": "the door",
+    "das Fenster": "the window",
+    "die Lampe": "the lamp",
+    "der Tisch": "the table",
+    "der Stuhl": "the chair",
+    "das Bett": "the bed",
+    "der Computer": "the computer",
+    "das Telefon": "the phone",
+    "der Tag": "the day",
+    "die Nacht": "the night",
+    "die Woche": "the week",
+    "der Monat": "the month",
+    "das Jahr": "the year",
+    "der Sommer": "the summer",
+    "der Winter": "the winter",
+    "der Herbst": "the autumn",
+    "der Frühling": "the spring",
+    "heute": "today",
+    "morgen": "tomorrow",
+    "gestern": "yesterday",
+    "jetzt": "now",
+    "später": "later",
+    "früher": "earlier",
+    "oben": "up",
+    "unten": "down",
+    "links": "left",
+    "rechts": "right",
+    "hier": "here",
+    "dort": "there",
+    "schön": "beautiful",
+    "gut": "good",
+    "schlecht": "bad",
+    "groß": "big",
+    "klein": "small",
+    "alt": "old",
+    "neu": "new",
+    "jung": "young",
+    "schnell": "fast",
+    "langsam": "slow",
+    "heiß": "hot",
+    "kalt": "cold",
+    "hell": "bright",
+    "dunkel": "dark",
+    "leicht": "easy / light",
+    "schwer": "difficult / heavy",
+    "frei": "free",
+    "voll": "full",
+    "leer": "empty",
+    "bereit": "ready",
+    "krank": "sick",
+    "gesund": "healthy",
+    "traurig": "sad",
+    "glücklich": "happy",
+    "müde": "tired",
+    "durstig": "thirsty",
+    "hungrig": "hungry"
 }
-
-async def generate_tts_audio(text: str, voice: str = "de-DE-KatjaNeural"):
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    communicator = edge_tts.Communicate(text, voice)
-    await communicator.save(tmp_file.name)
-    return tmp_file.name
-
-def get_audio_file(text):
-    return anyio.run(generate_tts_audio, text)
 
 st.set_page_config(page_title="German Learning Buddy", page_icon="🇩🇪")
 
@@ -65,13 +131,12 @@ if "german_word" not in st.session_state:
 st.header(st.session_state.german_word)
 
 if st.button("🔊 Hear pronunciation"):
-    try:
-        audio_path = get_audio_file(st.session_state.german_word)
-        audio_bytes = open(audio_path, "rb").read()
-        st.audio(audio_bytes, format="audio/mp3")
-        os.remove(audio_path)
-    except Exception as e:
-        st.error(f"Audio generation failed: {e}")
+    word = st.session_state.german_word
+    tts_url = (
+        "https://translate.google.com/translate_tts?"
+        + f"ie=UTF-8&q={urllib.parse.quote(word)}&tl=de&client=tw-ob"
+    )
+    st.audio(tts_url, format="audio/mp3")
 
 if not st.session_state.show_translation:
     with st.form("guess_form"):
@@ -91,4 +156,4 @@ else:
         st.experimental_rerun()
 
 st.markdown("---")
-st.caption("Made with ❤️ using Streamlit and edge-tts")
+st.caption("Made with ❤️ using Streamlit and Google Translate TTS URL")
