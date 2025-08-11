@@ -146,7 +146,15 @@ def play_audio():
                 audio_bytes_io = io.BytesIO()
                 tts.write_to_fp(audio_bytes_io)
                 audio_bytes_io.seek(0)
-            st.audio(audio_bytes_io, format="audio/mp3", autoplay=True)
+
+                # Check if audio has data
+                if audio_bytes_io.getbuffer().nbytes == 0:
+                    st.error("No audio data generated. Check your internet connection.")
+                    return
+
+            # Read bytes explicitly for st.audio
+            st.audio(audio_bytes_io.read(), format="audio/mp3", autoplay=True)
+
         except Exception as e:
             st.error(f"Failed to generate audio: {e}")
             st.warning("Please check your internet connection and try again.")
@@ -168,7 +176,7 @@ if not st.session_state.audio_played:
     play_audio()
     st.session_state.audio_played = True
 
-# Targeted CSS to hide submit buttons
+# Targeted CSS to hide only form submit buttons
 st.markdown("""
 <style>
 div.stButton > button[kind="secondary"] {
