@@ -135,18 +135,21 @@ GERMAN_WORDS = {
 # This is crucial for Streamlit to remember the state between re-runs
 if "german_word" not in st.session_state:
     st.session_state.german_word = None
-    st.session_state.translation = None
-    st.session_state.show_answer = False
+    st.session_state.english_translation = None
+    st.session_state.show_translation = False
     st.session_state.feedback = ""
 
-def get_new_word():
+def get_new_word_pair():
     """Selects a new random word and stores it in session state."""
-    st.session_state.show_answer = False
+    st.session_state.show_translation = False
     st.session_state.feedback = ""
-    st.session_state.german_word, st.session_state.translation = random.choice(list(GERMAN_WORDS.items()))
+    st.session_state.german_word, st.session_state.english_translation = random.choice(list(GERMAN_WORDS.items()))
+    # To clear the input box for the next round
+    if 'user_guess' in st.session_state:
+        del st.session_state.user_guess
 
 def play_audio():
-    """Generates and plays the audio for the current word."""
+    """Generates and plays the audio for the current German word."""
     if st.session_state.german_word:
         try:
             tts = gTTS(text=st.session_state.german_word, lang='de')
@@ -156,7 +159,7 @@ def play_audio():
             st.audio(audio_bytes_io, format="audio/mp3")
         except Exception as e:
             st.error(f"Failed to generate audio. Please check your network connection.")
-            st.warning("Sometimes this happens due to a temporary issue with the text-to-speech service.")
+            st.warning("This is likely a temporary issue with the text-to-speech service.")
 
 # --- App UI & Logic ---
 
@@ -166,43 +169,40 @@ st.write("Welcome to your German vocabulary trainer!")
 
 # Initialize the first word if the app just started
 if st.session_state.german_word is None:
-    get_new_word()
+    get_new_word_pair()
 
-col1, col2 = st.columns([3, 1])
+# Display the German word to be repeated
+st.header(st.session_state.german_word)
 
-with col1:
-    st.header(st.session_state.german_word)
-with col2:
-    if st.button("🔊 Play Pronunciation"):
-        play_audio()
+# Play audio for the German word
+if st.button("🔊 Play Pronunciation"):
+    play_audio()
 
 # --- User Guess Section ---
-user_guess = st.text_input("What is the English translation?", key="user_guess")
+user_guess = st.text_input("Type the German word here:", key="user_guess")
 
 # Handle the user's guess and provide feedback
 if st.button("Check Answer"):
-    if user_guess.strip().lower() == st.session_state.translation.lower():
-        st.session_state.feedback = f"✅ Correct! The translation of '{st.session_state.german_word}' is '{st.session_state.translation}'."
-        st.session_state.show_answer = True
+    if user_guess.strip().lower() == st.session_state.german_word.lower():
+        st.session_state.feedback = f"✅ Correct! The English translation is '{st.session_state.english_translation}'."
+        st.session_state.show_translation = True
     else:
         st.session_state.feedback = "❌ Incorrect. Try again!"
-        st.session_state.show_answer = False
+        st.session_state.show_translation = False
 
 # Display feedback and the correct answer if requested
 if st.session_state.feedback:
     st.markdown("### Feedback:")
     if st.session_state.feedback.startswith("✅"):
         st.success(st.session_state.feedback)
-        st.session_state.show_answer = True
+        st.session_state.show_translation = True
     else:
         st.error(st.session_state.feedback)
 
-# Always show the correct answer and a new word button after a correct guess
-if st.session_state.show_answer:
+# Show a new word button
+if st.session_state.show_translation:
     if st.button("Get a New Word"):
-        get_new_word()
-        # To clear the input box for the next round
-        st.session_state.user_guess = ""
+        get_new_word_pair()
 
 # --- Footer ---
 st.markdown("---")
