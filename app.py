@@ -60,8 +60,8 @@ if st.button("Translate & Pronounce"):
             st.audio(audio_bytes_io, format="audio/mp3")
 
         except Exception as e:
-            st.error(f"An error occurred while generating audio: {e}")
-            st.warning("Please check your internet connection or try a different phrase.")
+            st.error(f"Failed to generate audio. Please check your network connection and try again.")
+            st.warning("Sometimes this happens due to a temporary issue with the text-to-speech service.")
     else:
         st.warning("Please enter some text to translate and pronounce.")
 
