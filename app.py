@@ -1,109 +1,97 @@
 import streamlit as st
 import random
-import pyttsx3
+import edge_tts
+import asyncio
 import tempfile
 import os
 
-# ----------------------------
-# Word list
-# ----------------------------
-words = {
-    "Hund": "dog",
-    "Katze": "cat",
-    "Haus": "house",
-    "Buch": "book",
-    "Auto": "car",
-    "Baum": "tree",
-    "Stuhl": "chair",
-    "Tisch": "table",
-    "Wasser": "water",
-    "Brot": "bread",
-    "Apfel": "apple",
-    "Milch": "milk",
-    "Schule": "school",
-    "Fenster": "window",
-    "Tür": "door",
-    "Sonne": "sun",
-    "Mond": "moon",
-    "Stern": "star",
-    "Himmel": "sky",
-    "Erde": "earth",
-    "rot": "red",
-    "blau": "blue",
-    "grün": "green",
-    "heiß": "hot",
-    "kalt": "cold",
-    "groß": "big",
-    "klein": "small",
-    "schön": "beautiful",
-    "hässlich": "ugly",
-    "alt": "old",
-    "jung": "young",
-    "neu": "new",
-    "schnell": "fast",
-    "langsam": "slow",
-    "glücklich": "happy",
-    "traurig": "sad",
-    "müde": "tired",
-    "hungrig": "hungry"
+# --- German words dictionary ---
+GERMAN_WORDS = {
+    "Hallo": "Hello",
+    "Danke": "Thank you",
+    "Bitte": "Please",
+    "Ja": "Yes",
+    "Nein": "No",
+    "Entschuldigung": "Excuse me",
+    "Guten Morgen": "Good morning",
+    "Guten Tag": "Good day",
+    "Guten Abend": "Good evening",
+    "Auf Wiedersehen": "Goodbye",
+    "Wie geht es Ihnen?": "How are you? (formal)",
+    "Wie geht's?": "How are you? (informal)",
+    "Mir geht es gut": "I am fine",
+    "Ich heiße": "My name is",
+    "Was ist das?": "What is that?",
+    "Ich verstehe nicht": "I don't understand",
+    "Sprechen Sie Englisch?": "Do you speak English?",
+    "die Katze": "the cat",
+    "der Hund": "the dog",
+    "das Buch": "the book",
+    "das Auto": "the car",
+    "der Mann": "the man",
+    "die Frau": "the woman",
+    "das Kind": "the child",
+    "das Haus": "the house",
+    "die Schule": "the school",
+    "das Essen": "the food",
+    "das Wasser": "the water",
+    "die Milch": "the milk",
+    "der Kaffee": "the coffee",
+    "der Tee": "the tea",
+    "das Brot": "the bread",
+    "der Apfel": "the apple",
+    "die Banane": "the banana",
+    # Add more if you want
 }
 
-# ----------------------------
-# Text-to-speech initialization
-# ----------------------------
-
-@st.cache_resource
-def get_tts_engine():
-    engine = pyttsx3.init()
-    engine.setProperty("rate", 150)  # Adjust speed
-    engine.setProperty("volume", 1.0)
-    voices = engine.getProperty("voices")
-    # Try to find a German voice
-    for voice in voices:
-        if "german" in voice.name.lower() or "deutsch" in voice.name.lower():
-            engine.setProperty("voice", voice.id)
-            break
-    return engine
-
-def speak_text(text):
-    """Convert text to speech and return audio file path"""
-    engine = get_tts_engine()
+# --- Async helper to generate TTS audio with edge-tts ---
+async def generate_tts_audio(text: str, voice: str = "de-DE-KatjaNeural"):
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    tmp_path = tmp_file.name
-    tmp_file.close()
-    engine.save_to_file(text, tmp_path)
-    engine.runAndWait()
-    return tmp_path
+    communicator = edge_tts.Communicate(text, voice)
+    await communicator.save(tmp_file.name)
+    return tmp_file.name
 
-# ----------------------------
-# Streamlit App
-# ----------------------------
-st.set_page_config(page_title="Learn German", page_icon="🇩🇪")
-st.title("🇩🇪 Learn German Vocabulary")
+def get_audio_file(text):
+    return asyncio.run(generate_tts_audio(text))
 
-if "current_word" not in st.session_state:
-    st.session_state.current_word = random.choice(list(words.keys()))
+# --- Streamlit app ---
+st.set_page_config(page_title="German Learning Buddy", page_icon="🇩🇪")
+
+st.title("German Learning Buddy 🇩🇪")
+st.write("Welcome to your German vocabulary trainer!")
+st.markdown("---")
+
+if "german_word" not in st.session_state:
+    st.session_state.german_word, st.session_state.english_translation = random.choice(list(GERMAN_WORDS.items()))
     st.session_state.show_translation = False
 
-# Current word display
-word = st.session_state.current_word
-st.subheader(f"German word: **{word}**")
+st.header(st.session_state.german_word)
 
-# Play audio
 if st.button("🔊 Hear pronunciation"):
-    audio_file = speak_text(word)
-    audio_bytes = open(audio_file, "rb").read()
-    st.audio(audio_bytes, format="audio/mp3")
-    os.remove(audio_file)
+    try:
+        audio_path = get_audio_file(st.session_state.german_word)
+        audio_bytes = open(audio_path, "rb").read()
+        st.audio(audio_bytes, format="audio/mp3")
+        os.remove(audio_path)
+    except Exception as e:
+        st.error(f"Audio generation failed: {e}")
 
-# Show / hide translation
-if st.button("Show Translation"):
-    st.session_state.show_translation = True
+if not st.session_state.show_translation:
+    with st.form("guess_form"):
+        _ = st.text_input("Type the German word here:")
+        submitted = st.form_submit_button("Submit")
+    if submitted:
+        st.session_state.show_translation = True
+else:
+    st.markdown("### Translation:")
+    st.write(st.session_state.english_translation)
+    with st.form("next_form"):
+        _ = st.text_input("Press Enter for next word:", value="")
+        next_submitted = st.form_submit_button("Next")
+    if next_submitted:
+        st.session_state.german_word, st.session_state.english_translation = random.choice(list(GERMAN_WORDS.items()))
+        st.session_state.show_translation = False
+        st.experimental_rerun()
 
-if st.session_state.show_translation:
-    st.write(f"**English:** {words[word]}")
-
-# Next word button
-if st.button("Next Word"):
-    st.session_state.current_word = random.choice(list(words.keys()))
-    st.session_state.show_translation = False
+st.markdown("---")
+st.caption("Made with ❤️ using Streamlit and edge-tts")
